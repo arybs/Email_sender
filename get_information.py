@@ -1,5 +1,6 @@
 import openpyxl
 import datetime
+from copy import copy
 
 today = datetime.datetime.today()
 
@@ -14,11 +15,12 @@ day = today.day
 
 print(month, day, weekday)
 
-wb = openpyxl.Workbook()
-ws = wb.active
 
 raw_data = openpyxl.load_workbook('./data/grafik.xlsx')
 select_sheet = raw_data['Schedule']
+wb = openpyxl.Workbook()
+ws = wb.active
+workers = {}
 
 
 # Takes: start cell, end cell, and sheet you want to copy from.
@@ -36,12 +38,6 @@ def copyRange(startCol, startRow, endCol, endRow, sheet):
     return rangeSelected
 
 
-for col in range(select_sheet.min_column, select_sheet.max_column + 1):
-    if select_sheet.cell(3, col).value == month:
-        start_column = col
-        break
-
-
 # Paste data from copyRange into template sheet
 def pasteRange(startCol, startRow, endCol, endRow, sheetReceiving, copiedData):
     countRow = 0
@@ -53,30 +49,41 @@ def pasteRange(startCol, startRow, endCol, endRow, sheetReceiving, copiedData):
         countRow += 1
 
 
-print(select_sheet.cell(row=18, column=start_column + day - 1 + 7 - weekday).value)
+def copy_cell(source_cell, row, col, tgt):
+    tgt.cell(row=row, column=col).value = source_cell.value
+    if source_cell.has_style:
+        tgt.cell(row=row, column=col)._style = copy(source_cell._style)
 
-range_to_copy = copyRange(startCol=+ day - 1 + 7 - weekday, startRow=18,
-                          endCol=start_column + day - 1 + 7 - weekday + 7, endRow=18, sheet=select_sheet)
-pasteRange(startCol=1, endCol=7, startRow=1, endRow=1, sheetReceiving=ws, copiedData=range_to_copy)
-range_to_copy = copyRange(startCol=+ day - 1 + 7 - weekday, startRow=19,
-                          endCol=start_column + day - 1 + 7 - weekday + 7, endRow=19, sheet=select_sheet)
-pasteRange(startCol=8, endCol=14, startRow=1, endRow=1, sheetReceiving=ws, copiedData=range_to_copy)
 
-range_to_copy = copyRange(startCol=1, startRow=2, endCol=3, endRow=2, sheet=select_sheet)
-pasteRange(startCol=1, endCol=3, startRow=2, endRow=2, sheetReceiving=ws, copiedData=range_to_copy)
+def copyPasteRange(copy_coord, sheet, paste_coord, sheet2):
+    startCol, startRow, endCol, endRow = copy_coord[0], copy_coord[1], copy_coord[2], copy_coord[3]
+    # Loops through selected Rows
+    pasting_col, pasting_row = paste_coord[0], paste_coord[1]
+    for i in range(startRow, endRow + 1, 1):
+        # Appends the row to a RowSelected list
+        for j in range(startCol, endCol + 1, 1):
+            cell_to_copy = sheet.cell(row=i, column=j)
+            copy_cell(cell_to_copy, pasting_row, pasting_col, sheet2)
+            pasting_col += 1
+        pasting_row += 1
+    return sheet2
 
-range_to_copy = copyRange(startCol=1, startRow=16, endCol=3, endRow=16, sheet=select_sheet)
-pasteRange(startCol=1, endCol=3, startRow=3, endRow=3, sheetReceiving=ws, copiedData=range_to_copy)
 
-people = 0
+for col in range(select_sheet.min_column, select_sheet.max_column + 1):
+    if select_sheet.cell(3, col).value == month:
+        start_column = col
+        break
+
+
+
+
 for row in range(select_sheet.min_row, select_sheet.max_row + 1):
     for col in range(start_column + day - 1 + 7 - weekday, start_column + day - 1 + 7 - weekday + 7):
         if select_sheet.cell(row, col).value == 'x':
-            people += 1
-            print(select_sheet.cell(row=row, column=1).value)
-            ws.cell(column=1, row=3 + people).value = select_sheet.cell(row=row, column=1).value
-            range_to_copy = copyRange(startCol=start_column + day - 1 + 7 - weekday, startRow=row,
-                                      endCol=start_column + day - 1 + 7 - weekday + 7, endRow=row, sheet=select_sheet)
-            pasteRange(startCol=8, endCol=14, startRow=3+people, endRow=3+people, sheetReceiving=ws, copiedData=range_to_copy)
+            worker_name = select_sheet.cell(row=row, column=1).value
+            worker_email = select_sheet.cell(row=row, column=2).value
+            workers[worker_name] = worker_email
 
-wb.save('check.xlsx')
+
+wb.save('check1.xlsx')
+print(workers)

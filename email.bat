@@ -1,0 +1,1 @@
+</path/to/python.exe> <"Path/to/dict/with/script/main.py">
